@@ -3,7 +3,7 @@
 client_id = "c4a334e8f6e94665a6e5280318bc93a9"
 name = "Alt-Magic-app"
 handle = "alt-magic-app-1"
-application_url = "https://agents-acrobat-gardening-yourself.trycloudflare.com"
+application_url = "https://brush-departure-acer-arrived.trycloudflare.com"
 embedded = true
 
 [build]
@@ -22,11 +22,10 @@ api_version = "2025-07"
   uri = "/webhooks/app/scopes_update"
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "read_products, read_content,unauthenticated_read_content"
 
 [auth]
-redirect_urls = ["https://agents-acrobat-gardening-yourself.trycloudflare.com/auth/callback", "https://agents-acrobat-gardening-yourself.trycloudflare.com/auth/shopify/callback", "https://agents-acrobat-gardening-yourself.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://brush-departure-acer-arrived.trycloudflare.com/auth/callback", "https://brush-departure-acer-arrived.trycloudflare.com/auth/shopify/callback", "https://brush-departure-acer-arrived.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
