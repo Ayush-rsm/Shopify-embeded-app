@@ -3,7 +3,7 @@
 client_id = "c4a334e8f6e94665a6e5280318bc93a9"
 name = "Alt-Magic-app"
 handle = "alt-magic-app-1"
-application_url = "https://segments-item-shade-evaluating.trycloudflare.com"
+application_url = "https://stolen-asp-pine-paid.trycloudflare.com"
 embedded = true
 
 [build]
@@ -22,10 +22,11 @@ api_version = "2025-07"
   uri = "/webhooks/app/scopes_update"
 
 [access_scopes]
-scopes = "read_products, read_content,unauthenticated_read_content"
+scopes = "read_products, write_products, read_content, unauthenticated_read_content,  write_content"
+
 
 [auth]
-redirect_urls = ["https://segments-item-shade-evaluating.trycloudflare.com/auth/callback", "https://segments-item-shade-evaluating.trycloudflare.com/auth/shopify/callback", "https://segments-item-shade-evaluating.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://stolen-asp-pine-paid.trycloudflare.com/auth/callback", "https://stolen-asp-pine-paid.trycloudflare.com/auth/shopify/callback", "https://stolen-asp-pine-paid.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
