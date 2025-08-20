@@ -25,6 +25,7 @@ export default function App() {
      
         <Link to="/app/AiSettings">Ai Settings</Link>
         <Link to="/app/bulkGeneration">Bulk Generation</Link>
+        <Link to="/app/AccountSettings">Account Settings</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>

@@ -1,672 +1,213 @@
-// import { useLoaderData } from "@remix-run/react";
-// import { json } from "@remix-run/node";
-// import { authenticate } from "../shopify.server";
-// import AltTextDashboard from "../componenets/AltTextDashboard";
-
-// export const loader = async ({ request }) => {
-//   const { admin, session } = await authenticate.admin(request);
-
-//   console.log("✅ Granted scopes:", session.scope);
-
-//   const productQuery = `
-//     query GetProductImages($first: Int!) {
-//       products(first: $first) {
-//         edges {
-//           node {
-//             id
-//             title
-//             images(first: 10) {
-//               edges {
-//                 node {
-//                   id
-//                   altText
-//                   originalSrc
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }
-//     }
-//   `;
-
-//   // Updated blog query to fetch both featured images AND summary
-//   const blogQuery = `
-//     query GetBlogArticleImages($first: Int!) {
-//       blogs(first: $first) {
-//         edges {
-//           node {
-//             id
-//             title
-//             articles(first: 10) {
-//               edges {
-//                 node {
-//                   id
-//                   title
-//                   image {
-//                     altText
-//                     url
-//                   }
-//                   summary
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }
-//     }
-//   `;
-
-//   const pageQuery = `
-//     query GetPages($first: Int!) {
-//       pages(first: $first) {
-//         edges {
-//           node {
-//             id
-//             title
-//             body
-//           }
-//         }
-//       }
-//     }
-//   `;
-
-//   const [productRes, blogRes, pageRes] = await Promise.all([
-//     admin.graphql(productQuery, { variables: { first: 50 } }),
-//     admin.graphql(blogQuery, { variables: { first: 20 } }),
-//     admin.graphql(pageQuery, { variables: { first: 20 } }),
-//   ]);
-
-//   const productData = await productRes.json();
-//   const blogData = await blogRes.json();
-//   const pageData = await pageRes.json();
-
-//   // Extract product images (from actual image objects)
-//   const productImages =
-//     productData?.data?.products?.edges.flatMap((product) =>
-//       product.node.images.edges.map((img) => ({
-//         id: img.node.id,
-//         image: img.node.originalSrc,
-//         altText: img.node.altText || "",
-//         type: "product",
-//         processedOn: "",
-//       }))
-//     ) || [];
-
-//   // Extract blog images (featured images only - Admin API limitation)
-//   const blogImages = blogData?.data?.blogs?.edges.flatMap((blog) =>
-//     blog.node.articles.edges.flatMap((article) => {
-//       const images = [];
-      
-//       // Featured image (if exists)
-//       if (article.node.image) {
-//         images.push({
-//           id: `${article.node.id}_featured`,
-//           image: article.node.image.url,
-//           altText: article.node.image.altText || "",
-//           type: "blog",
-//           subType: "featured",
-//           processedOn: "",
-//         });
-//       }
-      
-//       // Note: Article content HTML is not available in Admin API
-//       // Only summary and excerpt fields are available
-      
-//       return images;
-//     })
-//   ) || [];
-
-//   // Extract page images (from HTML body content)
-//   const pageImages = pageData?.data?.pages?.edges.flatMap((page) => {
-//     if (!page.node.body) return [];
-    
-//     const matches = [...page.node.body.matchAll(/<img[^>]*src="([^"]+)"[^>]*>/g)];
-//     return matches.map((match, index) => {
-//       const altMatch = match[0].match(/alt="([^"]*)"/);
-//       const altText = altMatch ? altMatch[1] : "";
-      
-//       return {
-//         id: `${page.node.id}_img_${index}`,
-//         image: match[1],
-//         altText: altText,
-//         type: "page",
-//         processedOn: "",
-//       };
-//     });
-//   }) || [];
-
-//   const images = [...productImages, ...blogImages, ...pageImages];
-
-//   console.log(`📊 Total images found: ${images.length}`);
-//   console.log(`🛍️  Product images: ${productImages.length}`);
-//   console.log(`📝 Blog images: ${blogImages.length}`);
-//   console.log(`📄 Page images: ${pageImages.length}`);
-
-//   return json({ images });
-// };
-
-// export default function ImagesRoute() {
-//   const { images } = useLoaderData();
-//   return <AltTextDashboard initialImages={images} />;
-// }
-
-
-
-// With graphql
-
-// import { useLoaderData } from "@remix-run/react";
-// import { json } from "@remix-run/node";
-// import { authenticate } from "../shopify.server";
-// import AltTextDashboard from "../componenets/AltTextDashboard";
-
-// export const loader = async ({ request }) => {
-//   const { admin, session } = await authenticate.admin(request);
-
-//   console.log("✅ Granted scopes:", session.scope);
-
-//   // 🛍️ Product image query
-//   const productQuery = `
-//     query GetProductImages($first: Int!) {
-//       products(first: $first) {
-//         edges {
-//           node {
-//             id
-//             title
-//             images(first: 10) {
-//               edges {
-//                 node {
-//                   id
-//                   altText
-//                   originalSrc
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }
-//     }
-//   `;
-
-//   // 📄 Page query (for embedded image tags inside body)
-//   const pageQuery = `
-//     query GetPages($first: Int!) {
-//       pages(first: $first) {
-//         edges {
-//           node {
-//             id
-//             title
-//             body
-//           }
-//         }
-//       }
-//     }
-//   `;
-
-//   // 📝 Blog article query (GraphQL-only)
-//   const blogQuery = `
-//     query GetBlogsWithArticles($blogLimit: Int!, $articleLimit: Int!) {
-//       blogs(first: $blogLimit) {
-//         edges {
-//           node {
-//             id
-//             title
-//             articles(first: $articleLimit) {
-//               edges {
-//                 node {
-//                   id
-//                   title
-//                   image {
-//                     originalSrc
-//                     altText
-//                   }
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }
-//     }
-//   `;
-
-//   // Perform all three GraphQL queries in parallel
-//   const [productRes, pageRes, blogRes] = await Promise.all([
-//     admin.graphql(productQuery, { variables: { first: 50 } }),
-//     admin.graphql(pageQuery, { variables: { first: 20 } }),
-//     admin.graphql(blogQuery, { variables: { blogLimit: 10, articleLimit: 10 } }),
-//   ]);
-
-//   const productData = await productRes.json();
-//   const pageData = await pageRes.json();
-//   const blogData = await blogRes.json();
-
-//   // 🛍️ Extract product images
-//   const productImages = productData?.data?.products?.edges.flatMap((product) =>
-//     product.node.images.edges.map((img) => ({
-//       id: img.node.id,
-//       image: img.node.originalSrc,
-//       altText: img.node.altText || "",
-//       type: "product",
-//       processedOn: "",
-//     }))
-//   ) || [];
-
-//   // 📝 Extract featured images from blog articles
-//   const blogImages = blogData?.data?.blogs?.edges.flatMap((blog) =>
-//     blog.node.articles.edges
-//       .filter((article) => article.node.image)
-//       .map((article) => ({
-//         id: `${article.node.id}_featured`,
-//         image: article.node.image.originalSrc,
-//         altText: article.node.image.altText || "",
-//         type: "blog",
-//         subType: "featured",
-//         processedOn: "",
-//       }))
-//   ) || [];
-
-//   // 📄 Extract images from page body (HTML parsing)
-//   const pageImages = pageData?.data?.pages?.edges.flatMap((page) => {
-//     if (!page.node.body) return [];
-
-//     const matches = [...page.node.body.matchAll(/<img[^>]*src="([^"]+)"[^>]*>/g)];
-//     return matches.map((match, index) => {
-//       const altMatch = match[0].match(/alt="([^"]*)"/);
-//       const altText = altMatch ? altMatch[1] : "";
-
-//       return {
-//         id: `${page.node.id}_img_${index}`,
-//         image: match[1],
-//         altText: altText,
-//         type: "page",
-//         processedOn: "",
-//       };
-//     });
-//   }) || [];
-
-//   const images = [...productImages, ...blogImages, ...pageImages];
-
-//   console.log(`📊 Total images found: ${images.length}`);
-//   console.log(`🛍️  Product images: ${productImages.length}`);
-//   console.log(`📝 Blog images: ${blogImages.length}`);
-//   console.log(`📄 Page images: ${pageImages.length}`);
-
-//   return json({ images });
-// };
-
-// export default function ImagesRoute() {
-//   const { images } = useLoaderData();
-//   return <AltTextDashboard initialImages={images} />;
-// }
-
-
-// withotb graphql
-
-// import { useLoaderData } from "@remix-run/react";
-// import { json } from "@remix-run/node";
-// import { authenticate } from "../shopify.server";
-// import AltTextDashboard from "../componenets/AltTextDashboard";
-
-// export const loader = async ({ request }) => {
-//   const { admin, session } = await authenticate.admin(request);
-
-//   console.log("✅ Granted scopes:", session.scope);
-
-//   const productQuery = `
-//     query GetProductImages($first: Int!) {
-//       products(first: $first) {
-//         edges {
-//           node {
-//             id
-//             title
-//             images(first: 10) {
-//               edges {
-//                 node {
-//                   id
-//                   altText
-//                   originalSrc
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }
-//     }
-//   `;
-
-//   const pageQuery = `
-//     query GetPages($first: Int!) {
-//       pages(first: $first) {
-//         edges {
-//           node {
-//             id
-//             title
-//             body
-//           }
-//         }
-//       }
-//     }
-//   `;
-
-  
-//   const getBlogImagesViaREST = async () => {
-//     const blogImages = [];
-    
-//     try {
-//       // Get blogs via REST API (has access to body_html)
-//       const blogsResponse = await fetch(`https://${session.shop}/admin/api/2023-10/blogs.json?limit=20`, {
-//         headers: {
-//           'X-Shopify-Access-Token': session.accessToken,
-//         },
-//       });
-      
-//       if (!blogsResponse.ok) {
-//         console.error('Failed to fetch blogs via REST');
-//         return [];
-//       }
-      
-//       const blogsData = await blogsResponse.json();
-      
-//       // For each blog, get its articles
-//       for (const blog of blogsData.blogs) {
-//         const articlesResponse = await fetch(`https://${session.shop}/admin/api/2023-10/blogs/${blog.id}/articles.json?limit=10`, {
-//           headers: {
-//             'X-Shopify-Access-Token': session.accessToken,
-//           },
-//         });
-        
-//         if (!articlesResponse.ok) continue;
-        
-//         const articlesData = await articlesResponse.json();
-        
-//         // Process each article
-//         for (const article of articlesData.articles) {
-//           // Featured image
-//           if (article.image) {
-//             blogImages.push({
-//               id: `${article.id}_featured`,
-//               image: article.image.src,
-//               altText: article.image.alt || "",
-//               type: "blog",
-//               subType: "featured",
-//               processedOn: "",
-//             });
-//           }
-          
-//           // Images from body_html content
-//           if (article.body_html) {
-//             const matches = [...article.body_html.matchAll(/<img[^>]*src="([^"]+)"[^>]*>/g)];
-//             const contentImages = matches.map((match, index) => {
-//               const altMatch = match[0].match(/alt="([^"]*)"/);
-//               const altText = altMatch ? altMatch[1] : "";
-              
-//               return {
-//                 id: `${article.id}_content_${index}`,
-//                 image: match[1],
-//                 altText: altText,
-//                 type: "blog",
-//                 subType: "content",
-//                 processedOn: "",
-//               };
-//             });
-//             blogImages.push(...contentImages);
-//           }
-//         }
-//       }
-//     } catch (error) {
-//       console.error('Error fetching blog content via REST:', error);
-//     }
-    
-//     return blogImages;
-//   };
-
-//   const [productRes, pageRes, blogImages] = await Promise.all([
-//     admin.graphql(productQuery, { variables: { first: 50 } }),
-//     admin.graphql(pageQuery, { variables: { first: 20 } }),
-//     getBlogImagesViaREST(),
-//   ]);
-
-//   const productData = await productRes.json();
-//   const pageData = await pageRes.json();
-
-
-  
-//   const productImages =
-//     productData?.data?.products?.edges.flatMap((product) =>
-//       product.node.images.edges.map((img) => ({
-//         id: img.node.id,
-//         image: img.node.originalSrc,
-//         altText: img.node.altText || "",
-//         type: "product",
-//         processedOn: "",
-//       }))
-//     ) || [];
-
- 
-
-
-//   const pageImages = pageData?.data?.pages?.edges.flatMap((page) => {
-//     if (!page.node.body) return [];
-    
-//     const matches = [...page.node.body.matchAll(/<img[^>]*src="([^"]+)"[^>]*>/g)];
-//     return matches.map((match, index) => {
-//       const altMatch = match[0].match(/alt="([^"]*)"/);
-//       const altText = altMatch ? altMatch[1] : "";
-      
-//       return {
-//         id: `${page.node.id}_img_${index}`,
-//         image: match[1],
-//         altText: altText,
-//         type: "page",
-//         processedOn: "",
-//       };
-//     });
-//   }) || [];
-
-//   const images = [...productImages, ...blogImages, ...pageImages];
-
-//   console.log(`📊 Total images found: ${images.length}`);
-//   console.log(`🛍️  Product images: ${productImages.length}`);
-//   console.log(`📝 Blog images: ${blogImages.length}`);
-//   console.log(`📄 Page images: ${pageImages.length}`);
-
-//   return json({ images });
-// };
-
-// export default function ImagesRoute() {
-//   const { images } = useLoaderData();
-//   return <AltTextDashboard initialImages={images} />;
-// }
-
-
-
-import { useLoaderData } from "@remix-run/react";
-import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { useState, useEffect, useCallback } from "react";
+import { LegacyCard, Tabs, Spinner } from '@shopify/polaris';
 import AltTextDashboard from "../componenets/AltTextDashboard";
-import * as cheerio from "cheerio";
 
-const STOREFRONT_ACCESS_TOKEN = "b6fdecd84f655bd7552ca3e60c59e9b1";
-
-export const loader = async ({ request }) => {
-  const { admin, session } = await authenticate.admin(request);
-  console.log("✅ Granted scopes:", session.scope);
-
-  const url = new URL(request.url);
-  const shop = url.searchParams.get("shop");
-
-  if (!shop || !STOREFRONT_ACCESS_TOKEN) {
-    throw new Error("Missing shop domain or Storefront token");
-  }
-
-  // GraphQL queries
-  const productQuery = `
-    query GetProductImages($first: Int!) {
-      products(first: $first) {
-        edges {
-          node {
-            id
-            title
-            images(first: 10) {
-              edges {
-                node {
-                  id
-                  altText
-                  originalSrc
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
-
-  const pageQuery = `
-    query GetPages($first: Int!) {
-      pages(first: $first) {
-        edges {
-          node {
-            id
-            title
-            body
-          }
-        }
-      }
-    }
-  `;
-
-  const storefrontQuery = `
-    query GetArticles($first: Int!) {
-      blogs(first: 5) {
-        edges {
-          node {
-            id
-            handle
-            articles(first: $first) {
-              edges {
-                node {
-                  id
-                  title
-                  contentHtml
-                  image {
-                    originalSrc
-                    altText
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
-
-  // Run all queries
-  const [productRes, pageRes, storefrontRes] = await Promise.all([
-    admin.graphql(productQuery, { variables: { first: 50 } }),
-    admin.graphql(pageQuery, { variables: { first: 20 } }),
-    fetch(`https://${shop}/api/2023-10/graphql.json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": STOREFRONT_ACCESS_TOKEN,
-      },
-      body: JSON.stringify({
-        query: storefrontQuery,
-        variables: { first: 10 },
-      }),
-    }),
-  ]);
-
-  // Parse responses
-  const productData = await productRes.json();
-  const pageData = await pageRes.json();
-  const blogData = await storefrontRes.json();
-
-  // Extract product images
-  const productImages =
-    productData?.data?.products?.edges.flatMap((product) =>
-      product.node.images.edges.map((img) => ({
-        id: img.node.id,
-        image: img.node.originalSrc,
-        altText: img.node.altText || "",
-        type: "product",
-        processedOn: "",
-      }))
-    ) || [];
-
-  // Extract page images from HTML
-  const pageImages =
-    pageData?.data?.pages?.edges.flatMap((page) => {
-      if (!page.node.body) return [];
-
-      const matches = [...page.node.body.matchAll(/<img[^>]*src="([^"]+)"[^>]*>/g)];
-      return matches.map((match, index) => {
-        const altMatch = match[0].match(/alt="([^"]*)"/);
-        const altText = altMatch ? altMatch[1] : "";
-        return {
-          id: `${page.node.id}_img_${index}`,
-          image: match[1],
-          altText,
-          type: "page",
-          processedOn: "",
-        };
-      });
-    }) || [];
-
-  // Extract blog images (featured + embedded)
-  const blogImages = [];
-const articles = blogData?.data?.blogs?.edges?.flatMap(blog =>
-  blog?.node?.articles?.edges ?? []
-) ?? [];
-
-for (const articleEdge of articles) {
-  const article = articleEdge?.node;
-  if (!article) continue;
-
-  // Featured image
-  if (article.image?.originalSrc) {
-    blogImages.push({
-      id: `${article.id}_featured`,
-      image: article.image.originalSrc,
-      altText: article.image.altText || "",
-      type: "blog",
-      subType: "featured",
-      processedOn: "",
-    });
-  }
-
-  // Embedded images from contentHtml
-  const $ = cheerio.load(article.contentHtml || "");
-  $("img").each((i, img) => {
-    const src = $(img).attr("src");
-    const alt = $(img).attr("alt") || "";
-    if (src) {
-      blogImages.push({
-        id: `${article.id}_content_${i}`,
-        image: src,
-        altText: alt,
-        type: "blog",
-        subType: "content",
-        processedOn: "",
-      });
-    }
-  });
-}
-
-  // const images = [...productImages, ...blogImages, ...pageImages];
-  const images = [ ...blogImages, ...pageImages];
-
-  console.log(`📊 Total images found: ${images.length}`);
-  console.log(`🛍️ Product images: ${productImages.length}`);
-  console.log(`📝 Blog images: ${blogImages.length}`);
-  console.log(`📄 Page images: ${pageImages.length}`);
-
-  return json({ images });
+const IMAGE_TYPE_ENDPOINTS = {
+  product: "/api/productImages",
+  blog: "/api/blogImages",
+  article: "/api/articleImages",
+  all: "/api/allImages",
 };
 
-export default function ImagesRoute() {
-  const { images } = useLoaderData();
-  return <AltTextDashboard initialImages={images} />;
+export default function BulkGeneration() {
+  const [imageType, setImageType] = useState("all");
+  const [altTextFilter, setAltTextFilter] = useState("all");
+  const [selected, setSelected] = useState(0);
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Function to categorize alt text quality
+  const categorizeAltText = (altText) => {
+    if (!altText || altText.trim() === '') {
+      return 'empty';
+    }
+    if (altText.trim().length < 10) {
+      return 'bad';
+    }
+    return 'good';
+  };
+
+  // Filter images based on alt text quality
+  const getFilteredImages = () => {
+    if (altTextFilter === 'all') {
+      return images;
+    }
+    
+    return images.filter(img => {
+      const category = categorizeAltText(img.altText);
+      return category === altTextFilter;
+    });
+  };
+
+  // Simplified fetch function
+  const fetchImages = async () => {
+    setLoading(true);
+
+    try {
+      const url = IMAGE_TYPE_ENDPOINTS[imageType];
+      const res = await fetch(url);
+      
+      if (!res.ok) {
+        throw new Error(`Failed to fetch images: ${res.status}`);
+      }
+      
+      const data = await res.json();
+
+      const newImages = (data.images || []).map(img => ({
+        ...img,
+        sourceType: imageType === 'all' ? img.sourceType : imageType
+      }));
+      
+      setImages(newImages);
+
+    } catch (error) {
+      console.error('Error fetching images:', error);
+      setImages([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch images when imageType changes
+  useEffect(() => {
+    fetchImages();
+  }, [imageType]);
+
+  // Handler to update altText for an image
+  const handleAltTextChange = (id, newText) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === id ? { ...img, altText: newText } : img
+      )
+    );
+  };
+
+  // Handler to update processedOn after generation
+  const handleAltTextGenerated = (id, generatedText) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === id
+          ? {
+              ...img,
+              altText: generatedText,
+              processedOn: new Date().toLocaleString(),
+            }
+          : img
+      )
+    );
+  };
+
+  // Get counts for each filter category
+  const getCounts = () => {
+    const counts = {
+      all: images.length,
+      empty: 0,
+      bad: 0,
+      good: 0
+    };
+
+    images.forEach(img => {
+      const category = categorizeAltText(img.altText);
+      counts[category]++;
+    });
+
+    return counts;
+  };
+
+  const counts = getCounts();
+  const filteredImages = getFilteredImages();
+
+  // Handle tab change
+  const handleTabChange = useCallback((selectedTabIndex) => {
+    setSelected(selectedTabIndex);
+    const filterTypes = ['all', 'empty', 'bad', 'good'];
+    setAltTextFilter(filterTypes[selectedTabIndex]);
+  }, []);
+
+  // Tab configuration with badges
+  const tabs = [
+    {
+      id: 'all-images-tab',
+      content: 'All Images',
+      badge: counts.all > 99 ? '99+' : counts.all.toString(),
+      accessibilityLabel: 'All images',
+      panelID: 'all-images-panel',
+    },
+    {
+      id: 'empty-alt-tab',
+      content: 'Empty Alt Text',
+      badge: counts.empty > 99 ? '99+' : counts.empty.toString(),
+      accessibilityLabel: 'Images with empty alt text',
+      panelID: 'empty-alt-panel',
+    },
+    {
+      id: 'bad-alt-tab',
+      content: 'Bad Alt Text',
+      badge: counts.bad > 99 ? '99+' : counts.bad.toString(),
+      accessibilityLabel: 'Images with bad alt text',
+      panelID: 'bad-alt-panel',
+    },
+    {
+      id: 'good-alt-tab',
+      content: 'Good Alt Text',
+      badge: counts.good > 99 ? '99+' : counts.good.toString(),
+      accessibilityLabel: 'Images with good alt text',
+      panelID: 'good-alt-panel',
+    },
+  ];
+
+  return (
+    <div style={{ padding: '24px', backgroundColor: '#f6f6f7', minHeight: '100vh' }}>
+      {/* Header Section */}
+    
+
+      {/* Image Type Filter */}
+      <LegacyCard sectioned>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontWeight: '500', color: '#202223' }}>Filter by:</span>
+            <select
+              value={imageType}
+              onChange={(e) => setImageType(e.target.value)}
+              style={{ 
+                padding: '8px 12px',
+                border: '1px solid #c9cccf',
+                borderRadius: '4px',
+                fontSize: '14px',
+                backgroundColor: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="all">All Images</option>
+              <option value="product">Product Images</option>
+              <option value="blog">Blog Images</option>
+              <option value="article">Article Images</option>
+            </select>
+          </div>
+          
+          {loading && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Spinner size="small" />
+              <span style={{ fontSize: '14px', color: '#6d7175' }}>Loading images...</span>
+            </div>
+          )}
+        </div>
+      </LegacyCard>
+
+      {/* Main Content with Tabs */}
+      <LegacyCard>
+        <Tabs tabs={tabs} selected={selected} onSelect={handleTabChange} fitted>
+          <LegacyCard.Section   >
+            {/* Dashboard Component */}
+            <AltTextDashboard
+              initialImages={filteredImages}
+              onAltTextChange={handleAltTextChange}
+              onAltTextGenerated={handleAltTextGenerated}
+              filterType={altTextFilter}
+            />
+          </LegacyCard.Section>
+        </Tabs>
+      </LegacyCard>
+    </div>
+  );
 }
