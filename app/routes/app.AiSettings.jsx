@@ -1,261 +1,359 @@
+// app/routes/app.ai-settings.jsx
+import { json } from "@remix-run/node";
+import { useLoaderData, useActionData, Form, useNavigation } from "@remix-run/react";
 import {
   Page,
+  Layout,
   Card,
-  BlockStack,
-  Text,
-  Checkbox,
+  FormLayout,
   TextField,
   Select,
+  Button,
+  Avatar,
+  Text,
+  Banner,
+  Badge,
+  Divider,
+  BlockStack,
   InlineStack,
-  Box,
+  Spinner
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
-import { useState, useCallback } from "react";
-//
-import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, Form } from "@remix-run/react";
+import { useState, useEffect } from "react";
+import { authenticate } from "../shopify.server";
+import apiService from "../utils/api";
 
-let SETTINGS = {
-  autoGenerate: true,
-  language: "English",
-  useForTitle: false,
-  useForCaption: false,
-  useForDescription: false,
-  prefixText: "",
-  suffixText: "",
-  useSeoKeywords: true,
-  usePostTitleFallback: true,
+// Loader function to fetch user details using dynamic session data
+export const loader = async ({ request }) => {
+  try {
+    const { session, admin } = await authenticate.admin(request);
+    
+    // Get store URL from session
+    const storeUrl = session.shop;
+    const fullStoreUrl = `https://${storeUrl}`;
+    
+    // Initialize user variables
+    let userEmail = null;
+    let userId = null;
+    let userName = null;
+    
+    // Check if we have online session with user info
+    if (session.onlineAccessInfo?.associated_user) {
+      const user = session.onlineAccessInfo.associated_user;
+      userEmail = user.email;
+      userId = user.id;
+      userName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+      
+      console.log('User ID:', userId);
+      console.log('User Email:', userEmail);
+      console.log('Store URL:', fullStoreUrl);
+    } else {
+      // Fallback: use shop domain as identifier if no user info available
+      userEmail = storeUrl;
+      console.log('No user info available, using store URL:', fullStoreUrl);
+    }
+    
+    // Call your API service with dynamic data
+    const result = await apiService.getUserDetails(
+      userEmail,
+      fullStoreUrl
+    );
+
+    if (result.success) {
+      return json({ 
+        userDetails: result.data, 
+        success: true,
+        sessionInfo: {
+          storeUrl: fullStoreUrl,
+          shopDomain: storeUrl,
+          userEmail,
+          userId,
+          userName
+        }
+      });
+    } else {
+      return json({ 
+        userDetails: null, 
+        success: false, 
+        error: result.error,
+        sessionInfo: {
+          storeUrl: fullStoreUrl,
+          shopDomain: storeUrl,
+          userEmail,
+          userId,
+          userName
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Loader error:', error);
+    return json({ 
+      success: false, 
+      error: 'Failed to load user details',
+      sessionInfo: null
+    });
+  }
 };
 
-export async function loader() {
-  return json(SETTINGS);
-}
+// Updated Action function with consistent user identifier logic
+export const action = async ({ request }) => {
+  try {
+    const { session } = await authenticate.admin(request);
+    const formData = await request.formData();
+    
+    // Use the SAME identifier logic as the loader
+    let userIdentifier = null;
+    if (session.onlineAccessInfo?.associated_user) {
+      // Use EMAIL instead of numeric ID (same as loader)
+      userIdentifier = session.onlineAccessInfo.associated_user.email;
+      console.log('Using user email:', userIdentifier);
+    } else {
+      // Fallback to shop domain (same as loader)
+      userIdentifier = session.shop;
+      console.log('Using fallback shop domain:', userIdentifier);
+    }
+    
+    console.log('Session info available:', {
+      hasOnlineInfo: !!session.onlineAccessInfo,
+      hasUser: !!session.onlineAccessInfo?.associated_user,
+      shop: session.shop,
+      userIdentifier: userIdentifier
+    });
+    
+    const settings = {
+      language: formData.get("language"),
+      alt_prefix: formData.get("alt_prefix"),
+      alt_suffix: formData.get("alt_suffix"),
+      alt_gen_type: formData.get("alt_gen_type"),
+      chatgpt_prompt_layer: formData.get("chatgpt_prompt_layer")
+    };
 
-export async function action({ request }) {
-  const formData = await request.formData();
-  const key = formData.get("key");
-  let value = formData.get("value");
+    console.log('Form data received:', settings);
+    console.log('Using user identifier for update:', userIdentifier);
 
-  if (value === "true") value = true;
-  if (value === "false") value = false;
+    const result = await apiService.updateUserDetails(userIdentifier, settings);
 
-  SETTINGS[key] = value;
+    if (result.success) {
+      return json({ 
+        success: true, 
+        message: result.data.message || 'Settings updated successfully!',
+        updatedFields: result.data.updatedFields || []
+      });
+    } else {
+      return json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('Action error:', error);
+    return json({ success: false, error: 'Failed to update settings: ' + error.message });
+  }
+};
 
-  return json({ success: true });
-}
+export default function AISettings() {
+  const { userDetails, success, error, sessionInfo } = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+  
+  const [formData, setFormData] = useState({
+    alt_gen_type: 'default',
+    alt_prefix: '',
+    alt_suffix: '',
+    chatgpt_prompt_layer: '',
+    language: 'en',
+  });
 
+  // Initialize form data when user details load
+  useEffect(() => {
+    if (userDetails) {
+      setFormData({
+        alt_gen_type: userDetails.ai_gen_settings?.alt_gen_type || 'default',
+        alt_prefix: userDetails.ai_gen_settings?.alt_prefix || '',
+        alt_suffix: userDetails.ai_gen_settings?.alt_suffix || '',
+        chatgpt_prompt_layer: userDetails.ai_gen_settings?.chatgpt_prompt_layer || '',
+        language: userDetails.language || 'en',
+      });
+    }
+  }, [userDetails]);
 
+  // Debug: Log session info
+  useEffect(() => {
+    if (sessionInfo) {
+      console.log('Session Info:', sessionInfo);
+    }
+  }, [sessionInfo]);
 
-export default function AltSettingsPage() {
-  const settings = useLoaderData();
-  const submit = useSubmit();
+  const handleFieldChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
-  const [autoGenerate, setAutoGenerate] = useState(settings.autoGenerate);
-  const [language, setLanguage] = useState(settings.language);
+  const altGenTypeOptions = [
+    { label: 'Default', value: 'default' },
+    { label: 'Descriptive', value: 'descriptive' },
+    { label: 'Concise', value: 'concise' },
+  ];
 
-  const [useForTitle, setUseForTitle] = useState(settings.useForTitle);
-  const [useForCaption, setUseForCaption] = useState(settings.useForCaption);
-  const [useForDescription, setUseForDescription] = useState(settings.useForDescription);
+  const languageOptions = [
+    { label: 'English', value: 'en' },
+    { label: 'Korean', value: 'ko' },
+    { label: 'Spanish', value: 'es' },
+    { label: 'French', value: 'fr' },
+    { label: 'German', value: 'de' },
+    { label: 'Japanese', value: 'ja' },
+    { label: 'Chinese', value: 'zh' },
+  ];
 
-  const [prefixText, setPrefixText] = useState(settings.prefixText);
-  const [suffixText, setSuffixText] = useState(settings.suffixText);
+  const parseSurveyFeedback = (surveyFeedback) => {
+    try {
+      return JSON.parse(surveyFeedback);
+    } catch {
+      return null;
+    }
+  };
 
-  const [useSeoKeywords, setUseSeoKeywords] = useState(settings.useSeoKeywords);
-  const [usePostTitleFallback, setUsePostTitleFallback] = useState(settings.usePostTitleFallback);
+  if (!success || !userDetails) {
+    return (
+      <Page title="AI Settings">
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                {error ? (
+                  <Banner status="critical">
+                    <Text variant="bodyMd">{error}</Text>
+                  </Banner>
+                ) : (
+                  <BlockStack gap="4" align="center">
+                    <Spinner size="large" />
+                    <Text variant="bodyMd">Loading AI Settings...</Text>
+                  </BlockStack>
+                )}
+              </div>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </Page>
+    );
+  }
 
-  const saveSettings = useCallback((key, value) => {
-    const formData = new FormData();
-    formData.append("key", key);
-    formData.append("value", value);
-    submit(formData, { method: "post" });
-  }, [submit]);
-
-
-//
-
-// export default function AltSettingsPage() {
-//   const [autoGenerate, setAutoGenerate] = useState(true);
-//   const [language, setLanguage] = useState("English");
-
-//   const [useForTitle, setUseForTitle] = useState(false);
-//   const [useForCaption, setUseForCaption] = useState(false);
-//   const [useForDescription, setUseForDescription] = useState(false);
-
-//   const [prefixText, setPrefixText] = useState("");
-//   const [suffixText, setSuffixText] = useState("");
-
-//   const [useSeoKeywords, setUseSeoKeywords] = useState(true);
-//   const [usePostTitleFallback, setUsePostTitleFallback] = useState(true);
-
-// const saveSettings = useCallback(async (key, value) => {
-//   try {
-//     const response = await fetch("/api/settings", {
-//       method: "POST",
-//       headers: {
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify({ key, value }),
-//     });
-
-//     if (!response.ok) {
-//       throw new Error("Failed to save setting");
-//     }
-
-//     console.log(`Saved ${key} =`, value);
-//   } catch (err) {
-//     console.error("Error saving setting:", err);
-//   }
-// }, []);
-
-
+  const surveyData = parseSurveyFeedback(userDetails.survey_feedback);
 
   return (
-    <Page>
-      <TitleBar title="Your AI Settings" />
-      <Card>
-        <BlockStack gap="400">
-
-
-          <InlineStack align="space-between" blockAlign="start" gap="400">
-            <Box minWidth="240px">
-              <Text variant="bodyMd" as="p">Auto-generate Alt-Text</Text>
-            </Box>
-            <Box minWidth="500px">
-              <Checkbox
-                label="Automatically generate alt text when new images are added"
-                checked={autoGenerate}
-                onChange={(value) => {
-                  setAutoGenerate(value);
-                  saveSettings("autoGenerate", value);
-                }}
-                helpText="It will automatically generate alt text for all images added to your website."
-              />
-            </Box>
-          </InlineStack>
-
-
-          <InlineStack align="space-between" blockAlign="center" gap="400">
-            <Box minWidth="240px">
-              <Text variant="bodyMd" as="p">Alt Text Language</Text>
-            </Box>
-            <Box minWidth="500px">
-              <Select
-                options={["English", "Spanish", "French"]}
-                value={language}
-                onChange={(value) => {
-                  setLanguage(value);
-                  saveSettings("language", value);
-                }}
-                label=""
-              />
-            </Box>
-          </InlineStack>
-
-
-          <InlineStack align="space-between" blockAlign="start" gap="400">
-            <Box minWidth="240px">
-              <Text variant="bodyMd" as="p">
-                Use generated alt text for other fields
+    <Page 
+      title="AI Settings"
+      subtitle={`Store: ${sessionInfo?.shopDomain} ${sessionInfo?.userName ? `| User: ${sessionInfo.userName}` : ''}`}
+    >
+      <Layout>
+        {actionData?.success && (
+          <Layout.Section>
+            <Banner status="success">
+              <Text variant="bodyMd">
+                {actionData.message}
+                {actionData.updatedFields && actionData.updatedFields.length > 0 && (
+                  <> Updated: {actionData.updatedFields.join(', ')}</>
+                )}
               </Text>
-            </Box>
-            <Box minWidth="500px">
-              <BlockStack gap="200">
-                <Checkbox
-                  label="Use same alt text value for image title"
-                  checked={useForTitle}
-                  onChange={(checked) => {
-                    setUseForTitle(checked);
-                    saveSettings("useForTitle", checked);
-                  }}
-                />
-                <Checkbox
-                  label="Use same alt text value for image caption"
-                  checked={useForCaption}
-                  onChange={(checked) => {
-                    setUseForCaption(checked);
-                    saveSettings("useForCaption", checked);
-                  }}
-                />
-                <Checkbox
-                  label="Use same alt text value for image description"
-                  checked={useForDescription}
-                  onChange={(checked) => {
-                    setUseForDescription(checked);
-                    saveSettings("useForDescription", checked);
-                  }}
-                />
-              </BlockStack>
-            </Box>
-          </InlineStack>
+            </Banner>
+          </Layout.Section>
+        )}
 
+        {actionData?.error && (
+          <Layout.Section>
+            <Banner status="critical">
+              <Text variant="bodyMd">{actionData.error}</Text>
+            </Banner>
+          </Layout.Section>
+        )}
 
+        {/* Debug Information (Remove in production) */}
+        {sessionInfo && (
+          <Layout.Section>
+            <Card>
+              <div style={{ padding: '20px' }}>
+                <Text variant="headingMd" as="h2">Session Information (Debug)</Text>
+                <div style={{ paddingTop: '16px' }}>
+                  <BlockStack gap="2">
+                    <Text variant="bodyMd">Store URL: {sessionInfo.storeUrl}</Text>
+                    <Text variant="bodyMd">Shop Domain: {sessionInfo.shopDomain}</Text>
+                    <Text variant="bodyMd">User Email: {sessionInfo.userEmail || 'Not available'}</Text>
+                    <Text variant="bodyMd">User ID: {sessionInfo.userId || 'Not available'}</Text>
+                    <Text variant="bodyMd">User Name: {sessionInfo.userName || 'Not available'}</Text>
+                  </BlockStack>
+                </div>
+              </div>
+            </Card>
+          </Layout.Section>
+        )}
 
-          <InlineStack align="space-between" blockAlign="center" gap="400">
-            <Box minWidth="240px">
-              <Text variant="bodyMd" as="p">
-                Add hardcoded string to beginning of alt text
-              </Text>
-            </Box>
-            <Box minWidth="500px">
-              <TextField
-                label=""
-                value={prefixText}
-                onChange={setPrefixText}
-                onBlur={() => saveSettings("prefixText", prefixText)}
-                autoComplete="off"
-              />
-            </Box>
-          </InlineStack>
+        {/* AI Settings Form */}
+        <Layout.Section>
+          <Card>
+            <div style={{ padding: '20px' }}>
+              <Text variant="headingMd" as="h2">AI Generation Settings</Text>
+              <div style={{ paddingTop: '24px' }}>
+                <Form method="post">
+                  {/* Hidden field for user identification - now using email like loader */}
+                  <input 
+                    type="hidden" 
+                    name="user_id" 
+                    value={sessionInfo?.userEmail || sessionInfo?.shopDomain} 
+                  />
+                  
+                  <FormLayout>
+                    <Select
+                      label="Alt Generation Type"
+                      options={altGenTypeOptions}
+                      value={formData.alt_gen_type}
+                      name="alt_gen_type"
+                      onChange={(value) => handleFieldChange('alt_gen_type', value)}
+                    />
 
+                    <TextField
+                      label="Alt Prefix"
+                      value={formData.alt_prefix}
+                      name="alt_prefix"
+                      onChange={(value) => handleFieldChange('alt_prefix', value)}
+                    />
 
-          <InlineStack align="space-between" blockAlign="center" gap="200">
-            <Box minWidth="240px">
-              <Text variant="bodyMd" as="p">
-                Add hardcoded string to end of alt text
-              </Text>
-            </Box>
-            <Box minWidth="500px">
-              <TextField
-                label=""
-                value={suffixText}
-                onChange={setSuffixText}
-                onBlur={() => saveSettings("suffixText", suffixText)}
-                autoComplete="off"
-              />
-            </Box>
-          </InlineStack>
+                    <TextField
+                      label="Alt Suffix"
+                      value={formData.alt_suffix}
+                      name="alt_suffix"
+                      onChange={(value) => handleFieldChange('alt_suffix', value)}
+                    />
 
+                    <TextField
+                      label="ChatGPT Prompt Layer"
+                      value={formData.chatgpt_prompt_layer}
+                      name="chatgpt_prompt_layer"
+                      onChange={(value) => handleFieldChange('chatgpt_prompt_layer', value)}
+                    />
 
-          <InlineStack align="space-between" blockAlign="start" gap="400">
-            <Box minWidth="240px">
-              <Text variant="bodyMd" as="p">SEO Keywords Settings</Text>
-            </Box>
-            <Box minWidth="300px">
-              <BlockStack gap="200">
-                <Checkbox
-                  label="Use SEO focus keyphrases & keywords for generating alt text"
-                  checked={useSeoKeywords}
-                  onChange={(value) => {
-                    setUseSeoKeywords(value);
-                    saveSettings("useSeoKeywords", value);
-                  }}
-                  helpText="Supported plugins: Yoast SEO, AIOSEO, Squirrly SEO, SEOPress & Rank Math"
-                />
-                <Checkbox
-                  label="Use post title as keywords if SEO keywords not found"
-                  checked={usePostTitleFallback}
-                  onChange={(value) => {
-                    setUsePostTitleFallback(value);
-                    saveSettings("usePostTitleFallback", value);
-                  }}
-                  helpText="Image should be linked to a post for using post title as context."
-                />
-              </BlockStack>
-            </Box>
-          </InlineStack>
+                    <Select
+                      label="Language"
+                      options={languageOptions}
+                      value={formData.language}
+                      name="language"
+                      onChange={(value) => handleFieldChange('language', value)}
+                    />
 
-        </BlockStack>
-      </Card>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '16px' }}>
+                      <Button
+                        variant="primary"
+                        submit
+                        loading={isSubmitting}
+                      >
+                        {isSubmitting ? 'Saving...' : 'Save Settings'}
+                      </Button>
+                    </div>
+                  </FormLayout>
+                </Form>
+              </div>
+            </div>
+          </Card>
+        </Layout.Section>
+      </Layout>
     </Page>
   );
 }

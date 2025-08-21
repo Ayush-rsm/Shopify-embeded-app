@@ -3,7 +3,7 @@
 client_id = "c4a334e8f6e94665a6e5280318bc93a9"
 name = "Alt-Magic-app"
 handle = "alt-magic-app-1"
-application_url = "https://stolen-asp-pine-paid.trycloudflare.com"
+application_url = "https://consumers-temperature-demonstrated-gem.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ scopes = "read_products, write_products, read_content, unauthenticated_read_cont
 
 
 [auth]
-redirect_urls = ["https://stolen-asp-pine-paid.trycloudflare.com/auth/callback", "https://stolen-asp-pine-paid.trycloudflare.com/auth/shopify/callback", "https://stolen-asp-pine-paid.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://consumers-temperature-demonstrated-gem.trycloudflare.com/auth/callback", "https://consumers-temperature-demonstrated-gem.trycloudflare.com/auth/shopify/callback", "https://consumers-temperature-demonstrated-gem.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

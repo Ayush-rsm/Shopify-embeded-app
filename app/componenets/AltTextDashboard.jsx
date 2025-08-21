@@ -589,7 +589,6 @@
 //   );
 // }
 
-
 import {
   Page,
   Card,
@@ -605,6 +604,7 @@ import {
 } from '@shopify/polaris';
 import { useState } from 'react';
 import { localStorage } from "../utils/shopifyApi"; // Import localStorage utility
+
 
 export default function AltTextDashboard({
   initialImages,
@@ -622,10 +622,12 @@ export default function AltTextDashboard({
     handleSelectionChange,
   } = useIndexResourceState(initialImages);
 
+
   const showToastMessage = (message) => {
     setToastMessage(message);
     setShowToast(true);
   };
+
 
   const setItemLoading = (id, isLoading) => {
     setLoadingStates(prev => ({
@@ -633,6 +635,7 @@ export default function AltTextDashboard({
       [id]: isLoading
     }));
   };
+
 
   const getAltTextQualityBadge = (altText) => {
     if (!altText || altText.trim() === '') {
@@ -644,6 +647,7 @@ export default function AltTextDashboard({
     return <Badge status="success">Good ({altText.trim().length} chars)</Badge>;
   };
 
+
   // Updated handleGenerateAndSave with localStorage credentials
 const handleGenerateAndSave = async (id) => {
   const imageToUpdate = initialImages.find((img) => img.id === id);
@@ -654,6 +658,7 @@ const handleGenerateAndSave = async (id) => {
     // Get credentials from localStorage
     const apiKey = localStorage.getApiKey();
     const userId = localStorage.getUserId();
+    const language = localStorage.getLanguage() || 'en';
     // Check if credentials exist
     if (!apiKey || !userId) {
       throw new Error('Please log in to use alt text generation');
@@ -682,7 +687,8 @@ const handleGenerateAndSave = async (id) => {
         imageBase64: base64,
         type: imageToUpdate.type,
         apiKey: apiKey,    // Add API key from localStorage
-        userId: userId     // Add user ID from localStorage
+        userId: userId,    // Add user ID from localStorage
+        language: language // Add language from localStorage
       }),
     });
     if (!res.ok) {
@@ -749,7 +755,7 @@ const handleGenerateAndSave = async (id) => {
         throw new Error(`Invalid page image ID format: ${updatedImage.id}`);
       }
       const pageId = pageIdMatch[1];
-      const imageIndex = pageIdMatch[1];
+      const imageIndex = pageIdMatch;
       
       console.log('Page image debug:', {
         originalId: updatedImage.id,
@@ -846,23 +852,29 @@ const handleGenerateAndSave = async (id) => {
 };
 
 
+
   // Bulk generate and save for selected images (also updated)
   const handleGenerateSelectedImages = async () => {
     if (selectedResources.length === 0) return;
 
+
     // Check credentials upfront
     const apiKey = localStorage.getApiKey();
     const userId = localStorage.getUserId();
+    const language = localStorage.getLanguage() || 'en';
+
 
     if (!apiKey || !userId) {
       showToastMessage('Please log in to your account to generate alt text.');
       return;
     }
 
+
     setLoading(true);
     let successCount = 0;
     let errorCount = 0;
     const errors = [];
+
 
     try {
       // Process images one by one to avoid overwhelming the API
@@ -874,6 +886,7 @@ const handleGenerateAndSave = async (id) => {
           continue;
         }
 
+
         setItemLoading(id, true);
         try {
           // Step 1: Generate alt text
@@ -882,6 +895,7 @@ const handleGenerateAndSave = async (id) => {
             throw new Error(`Failed to fetch image: ${response.status}`);
           }
 
+
           const blob = await response.blob();
           const base64 = await new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -889,6 +903,7 @@ const handleGenerateAndSave = async (id) => {
             reader.onerror = reject;
             reader.readAsDataURL(blob);
           });
+
 
           const res = await fetch('/api/generate-alt-text', {
             method: 'POST',
@@ -900,21 +915,26 @@ const handleGenerateAndSave = async (id) => {
               imageBase64: base64,
               type: imageToUpdate.type,
               apiKey: apiKey,    // Add API key from localStorage
-              userId: userId     // Add user ID from localStorage
+              userId: userId,    // Add user ID from localStorage
+              language: language // Add language from localStorage
             }),
           });
+
 
           if (!res.ok) {
             throw new Error(`Generation failed: ${res.status}`);
           }
+
 
           const data = await res.json();
           if (!data.altText) {
             throw new Error('No alt text returned');
           }
 
+
           // Update local state
           onAltTextGenerated(id, data.altText);
+
 
           // Step 2: Auto-save (same logic as single image)
           const updatedImage = { ...imageToUpdate, altText: data.altText };
@@ -924,6 +944,7 @@ const handleGenerateAndSave = async (id) => {
           const isPageImage = updatedImage.id.includes('gid://shopify/Page/') || updatedImage.type === 'page';
           const isBlogImage = updatedImage.type === 'blog' || updatedImage.blogId;
           const isProductImage = updatedImage.productId || updatedImage.type === 'product';
+
 
           if (isBlogImage) {
             const isFeaturedImage = 
@@ -937,9 +958,11 @@ const handleGenerateAndSave = async (id) => {
               updatedImage.id.includes('*html*') ||
               updatedImage.inlineImageData?.isInlineImage;
 
+
             if (!isFeaturedImage && !isInlineImage) {
               throw new Error(`Unable to determine blog image type for ${updatedImage.id}`);
             }
+
 
             requestData = {
               imageId: updatedImage.image,
@@ -977,6 +1000,7 @@ const handleGenerateAndSave = async (id) => {
             throw new Error(`Unsupported image type: ${updatedImage.type || 'unknown'}`);
           }
 
+
           const saveResponse = await fetch(apiEndpoint, {
             method: 'POST',
             headers: {
@@ -986,10 +1010,12 @@ const handleGenerateAndSave = async (id) => {
             body: JSON.stringify(requestData)
           });
 
+
           const saveResult = await saveResponse.json();
           if (!saveResponse.ok || !saveResult.success) {
             throw new Error(saveResult.details || saveResult.error || 'Failed to save generated alt text');
           }
+
 
           successCount++;
         } catch (error) {
@@ -1000,9 +1026,11 @@ const handleGenerateAndSave = async (id) => {
           setItemLoading(id, false);
         }
 
+
         // Small delay between requests
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+
 
       // Show summary message
       if (successCount > 0 && errorCount === 0) {
@@ -1022,9 +1050,11 @@ const handleGenerateAndSave = async (id) => {
     }
   };
 
+
   const handleAltTextChange = (id, value) => {
     onAltTextChange(id, value);
   };
+
 
   const getFilterDescription = () => {
     switch(filterType) {
@@ -1039,8 +1069,12 @@ const handleGenerateAndSave = async (id) => {
     }
   };
 
+
   return (
-    <div>
+
+
+     <Frame>
+   <div>
      
         <Card>
           {loading && <Loading />}
@@ -1161,5 +1195,7 @@ const handleGenerateAndSave = async (id) => {
         )}
      
     </div>
+  </Frame>
+    
   );
 }
