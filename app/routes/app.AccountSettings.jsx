@@ -341,7 +341,7 @@ import {
   Avatar,
   InlineStack,
   Box,
-  Link,  // Add this import
+  Link,
 } from "@shopify/polaris";
 import {
   completeVerificationFlow,
@@ -529,17 +529,11 @@ export default function AccountSettings() {
             </InlineStack>
           </InlineStack>
 
-
           <Text variant="bodyMd" tone="subdued">
             Note: Please enter your API key to continue. You can generate your API key from your{' '}
-            <a
-              href="https://app.altmagic.pro"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: 'var(--p-color-text-link)' }}
-            >
+            <Link url="https://app.altmagic.pro" external>
               Alt Magic WordPress Page
-            </a>
+            </Link>
           </Text>
 
           {error && (
@@ -560,7 +554,7 @@ export default function AccountSettings() {
               </Text>
               <div style={{
                 display: 'flex',
-                justifyContent: 'center', // Centers the video
+                justifyContent: 'center',
                 width: '100%'
               }}>
                 <div style={{
@@ -595,16 +589,11 @@ export default function AccountSettings() {
                   </div>
                 </div>
               </div>
-
-
-
             </BlockStack>
           </Box>
         </BlockStack>
       </Box>
     </Card>
-
-
   );
 
   const renderUserDetails = () => {
@@ -641,9 +630,7 @@ export default function AccountSettings() {
                   <Text tone="success">API key is verified.</Text>
                 </InlineStack>
               </div>
-
             </BlockStack>
-
 
             <Divider />
 
@@ -687,7 +674,6 @@ export default function AccountSettings() {
               </BlockStack>
             </InlineStack>
 
-
             <Divider />
 
             {/* Credits Available Section */}
@@ -697,9 +683,6 @@ export default function AccountSettings() {
                 {userDetails.creditsAvailable.toLocaleString()}
               </Badge>
             </InlineStack>
-
-
-
 
             {/* Remove API Key Section */}
             <InlineStack gap="300" align="start">
@@ -715,7 +698,6 @@ export default function AccountSettings() {
                 (Removing your API key will disable all Alt Magic features in your site.)
               </Text>
             </InlineStack>
-
           </BlockStack>
         </Box>
       </Card>

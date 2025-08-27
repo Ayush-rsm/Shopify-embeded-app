@@ -1,215 +1,287 @@
+// utils/api.js
 
+const API_BASE_URL = 'https://alt-magic-api-eabaa2c8506a.herokuapp.com';
 
-// API Configuration
-const API_CONFIG = {
-  baseURL: 'https://alt-magic-api-eabaa2c8506a.herokuapp.com',
-  timeout: 30000
-};
-
-// Function to get auth token from localStorage
-const getAuthToken = () => {
+// API service for fetching user data
+export const fetchUserData = async (userId, storeUrl) => {
   try {
-    // Check if we're in a browser environment
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('access_token') || localStorage.getItem('alt_magic_token');
-      console.log('🔑 Retrieved auth token from localStorage:', token ? `${token.substring(0, 10)}...` : 'Not found');
-      return token;
-    }
-    // Fallback for server-side rendering or when localStorage is not available
-    console.warn('⚠️ localStorage not available, using fallback token');
-    return '56bf7235c08bb188fb0d42b2'; // Fallback token
-  } catch (error) {
-    console.error('❌ Error accessing localStorage:', error);
-    return '56bf7235c08bb188fb0d42b2'; // Fallback token
-  }
-};
-
-// Generic API request function with debugging
-const makeAPIRequest = async (endpoint, data = {}, options = {}) => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
-
-  try {
-    // Get auth token dynamically from localStorage
-    const authToken = getAuthToken();
-    
-    if (!authToken) {
-      throw new Error('No authentication token available. Please log in again.');
-    }
-
-    console.log(`🔄 API Request: ${API_CONFIG.baseURL}${endpoint}`);
-    console.log('📤 Request Data:', JSON.stringify(data, null, 2));
-    console.log('🔑 Using auth token (first 10 chars):', authToken.substring(0, 10) + '...');
-    
-    const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}/shopify-get-user-details`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-        ...options.headers
       },
-      body: JSON.stringify(data),
-      signal: controller.signal,
-      ...options
+      body: JSON.stringify({
+        user_id: userId,
+        store_url: storeUrl
+      })
     });
-
-    clearTimeout(timeoutId);
     
-    console.log(`📊 Response Status: ${response.status}`);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ API Error:', errorText);
-      
-      // Handle 401/403 errors specifically (token issues)
-      if (response.status === 401 || response.status === 403) {
-        console.error('🔒 Authentication error - token may be invalid or expired');
-        // Optionally clear the token from localStorage
-        if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('alt_magic_token');
-        }
-      }
-      
-      throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+      throw new Error(`Failed to fetch user data: ${response.status} ${errorText}`);
     }
-
-    const responseData = await response.json();
-    console.log('✅ API Response:', responseData);
-    return responseData;
+    
+    const data = await response.json();
+    return data;
   } catch (error) {
-    clearTimeout(timeoutId);
-    console.error('💥 API Error:', error);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout. Please try again.');
-    }
+    console.error('Error in fetchUserData:', error);
     throw error;
   }
 };
 
-// API Service Object
-export const apiService = {
-  // Set auth token in localStorage
-  setAuthToken(token) {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem('authToken', token);
-        console.log('✅ Auth token saved to localStorage');
-      }
-    } catch (error) {
-      console.error('❌ Error saving auth token to localStorage:', error);
+// API service for saving store settings
+export const saveUserSettings = async (userId, storeUrl, settings) => {
+  try {
+    const requestBody = {
+      user_id: userId,
+      store_url: storeUrl,
+      store_settings: settings
+    };
+
+    console.log('Sending request body:', requestBody);
+
+    const response = await fetch(`${API_BASE_URL}/shopify-update-shopify-settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to save settings: ${response.status} ${errorText}`);
     }
-  },
-
-  // Get auth token from localStorage
-  getAuthToken() {
-    return getAuthToken();
-  },
-
-  // Clear auth token from localStorage
-  clearAuthToken() {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('alt_magic_token');
-        console.log('🗑️ Auth token cleared from localStorage');
-      }
-    } catch (error) {
-      console.error('❌ Error clearing auth token from localStorage:', error);
-    }
-  },
-
-  // Check if auth token exists
-  hasAuthToken() {
-    const token = getAuthToken();
-    return !!token;
-  },
-
-  // Get user details
-  async getUserDetails(userId, storeUrl) {
-    try {
-      console.log('🔍 Getting user details:', { userId, storeUrl });
-      
-      const data = await makeAPIRequest('/user-details', {
-        user_id: userId,
-        store_url: storeUrl
-      });
-      
-      return { success: true, data };
-    } catch (error) {
-      console.error('❌ Error fetching user details:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // Update user details
-  async updateUserDetails(userId, settings) {
-    try {
-      console.log('🔄 Updating user details:', { userId, settings });
-      
-      // Prepare data according to backend API structure
-      const updateData = {
-        user_id: userId
-      };
-
-      // Add fields only if they have values (to avoid backend validation errors)
-      if (settings.language !== undefined && settings.language !== '') {
-        updateData.language = settings.language;
-      }
-      
-      if (settings.alt_prefix !== undefined && settings.alt_prefix !== '') {
-        updateData.alt_prefix = settings.alt_prefix;
-      }
-      
-      if (settings.alt_suffix !== undefined && settings.alt_suffix !== '') {
-        updateData.alt_suffix = settings.alt_suffix;
-      }
-      
-      if (settings.alt_gen_type !== undefined && settings.alt_gen_type !== '') {
-        updateData.alt_gen_type = settings.alt_gen_type;
-      }
-      
-      if (settings.chatgpt_prompt_layer !== undefined && settings.chatgpt_prompt_layer !== '') {
-        updateData.chatgpt_prompt_layer = settings.chatgpt_prompt_layer;
-      }
-
-      console.log('📤 Final update data:', updateData);
-
-      const data = await makeAPIRequest('/update-user-details', updateData);
-      
-      return { success: true, data };
-    } catch (error) {
-      console.error('❌ Error updating user details:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // Batch update - update multiple settings at once
-  async updateMultipleSettings(userId, settingsArray) {
-    try {
-      const results = await Promise.all(
-        settingsArray.map(settings => this.updateUserDetails(userId, settings))
-      );
-      
-      const hasErrors = results.some(result => !result.success);
-      
-      return {
-        success: !hasErrors,
-        results,
-        errors: results.filter(result => !result.success)
-      };
-    } catch (error) {
-      console.error('Error in batch update:', error);
-      return { success: false, error: error.message };
-    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error in saveUserSettings:', error);
+    throw error;
   }
 };
 
-// Individual function exports for backward compatibility
-export const getUserDetails = apiService.getUserDetails;
-export const updateUserDetails = apiService.updateUserDetails;
+// Validation function
+export const validateFormData = (formState) => {
+  const errors = [];
+  
+  if (formState.textPrefix && formState.textPrefix.length > 100) {
+    errors.push("Text prefix must be 100 characters or less");
+  }
+  
+  if (formState.textSuffix && formState.textSuffix.length > 100) {
+    errors.push("Text suffix must be 100 characters or less");
+  }
+  
+  return errors;
+};
 
-// Default export
-export default apiService;
+// Helper function to transform form data to API format
+export const transformFormDataToAPI = (formState) => {
+  const mapLanguageNameToCode = (name) => {
+    const languageMap = {
+      'english': 'en',
+      'spanish': 'es',
+      'french': 'fr',
+      'german': 'de',
+      'japanese': 'ja',
+      'korean': 'ko',
+      'hindi': 'hi'
+    };
+    return languageMap[name] || 'en';
+  };
+
+  return {
+    alt_magic_auto_generate: formState.autoGenerate ? "1" : "0",
+    alt_magic_language: mapLanguageNameToCode(formState.language),
+    alt_magic_prepend_string: formState.textPrefix || "",
+    alt_magic_append_string: formState.textSuffix || "",
+    alt_magic_use_post_title: formState.postContext ? "1" : "0",
+    alt_magic_use_product_name: formState.fieldMapping.useForDescription ? "1" : "0"
+  };
+};
+
+// Helper function to transform API data to form format
+export const transformAPIDataToForm = (apiData) => {
+  const mapLanguageCodeToName = (code) => {
+    const languageMap = {
+      'en': 'english',
+      'es': 'spanish',
+      'fr': 'french',
+      'de': 'german',
+      'ja': 'japanese',
+      'ko': 'korean',
+      'hi': 'hindi'
+    };
+    return languageMap[code] || 'english';
+  };
+
+  const storeSettings = apiData.store_data?.store_settings || {};
+  const userDetails = apiData.user_details || {};
+  const aiGenSettings = userDetails.ai_gen_settings || {};
+
+  return {
+    autoGenerate: storeSettings.alt_magic_auto_generate === "1",
+    verbosity: aiGenSettings.alt_gen_type || userDetails.alt_gen_type || "standard",
+    language: mapLanguageCodeToName(
+      storeSettings.alt_magic_language || 
+      userDetails.language || 
+      "en"
+    ),
+    fieldMapping: {
+      useForTitle: false,
+      useForCaption: false,
+      useForDescription: storeSettings.alt_magic_use_product_name === "1",
+    },
+    textPrefix: storeSettings.alt_magic_prepend_string || "",
+    textSuffix: storeSettings.alt_magic_append_string || "",
+    seoIntegration: true,
+    postContext: storeSettings.alt_magic_use_post_title === "1",
+    updateStrategy: "empty_only",
+    performanceLevel: "1",
+  };
+};
+
+// Add this function to your utils/api.js or create a new API function
+export const fetchShopInfo = async (shop) => {
+  try {
+    const response = await fetch(`/api/shop-info?shop=${shop}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching shop info:', error);
+    throw error;
+  }
+};
+
+
+// // utils/api.js
+// // utils/api.js
+
+// const API_BASE_URL = 'https://alt-magic-api-eabaa2c8506a.herokuapp.com';
+
+// // API service for fetching user data
+// export const fetchUserData = async (userId, storeUrl) => {
+//   try {
+//     const response = await fetch(`${API_BASE_URL}/shopify-get-user-details`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({
+//         user_id: userId,
+//         store_url: storeUrl
+//       })
+//     });
+    
+//     if (!response.ok) {
+//       const errorText = await response.text();
+//       throw new Error(`Failed to fetch user data: ${response.status} ${errorText}`);
+//     }
+    
+//     const data = await response.json();
+//     return data;
+//   } catch (error) {
+//     console.error('Error in fetchUserData:', error);
+//     throw error;
+//   }
+// };
+
+// // API service for saving user settings
+// export const saveUserSettings = async (userId, storeUrl, settings) => {
+//   try {
+//     const response = await fetch(`${API_BASE_URL}/shopify-update-shopify-settings`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({
+//         user_id: userId,
+//         store_url: storeUrl,
+//         store_settings: settings
+//       })
+//     });
+    
+//     if (!response.ok) {
+//       const errorText = await response.text();
+//       throw new Error(`Failed to save settings: ${response.status} ${errorText}`);
+//     }
+    
+//     const data = await response.json();
+//     return data;
+//   } catch (error) {
+//     console.error('Error in saveUserSettings:', error);
+//     throw error;
+//   }
+// };
+
+// // Helper function to transform form data to API format
+// export const transformFormDataToAPI = (formState) => {
+//   const mapLanguageNameToCode = (name) => {
+//     const languageMap = {
+//       'english': 'en',
+//       'spanish': 'es',
+//       'french': 'fr',
+//       'german': 'de',
+//       'japanese': 'ja',
+//       'korean': 'ko'
+//     };
+//     return languageMap[name] || 'en';
+//   };
+
+//   // Return only the store_settings object as expected by your API
+//   return {
+//     alt_magic_auto_generate: formState.autoGenerate ? "1" : "0",
+//     alt_magic_language: mapLanguageNameToCode(formState.language),
+//     alt_magic_prepend_string: formState.textPrefix || "",
+//     alt_magic_append_string: formState.textSuffix || "",
+//     alt_magic_use_post_title: formState.postContext ? "1" : "0",
+//     alt_magic_use_product_name: "1" // Keep this as default
+//   };
+// };
+
+// // Helper function to transform API data to form format
+// export const transformAPIDataToForm = (apiData) => {
+//   const mapLanguageCodeToName = (code) => {
+//     const languageMap = {
+//       'en': 'english',
+//       'es': 'spanish',
+//       'fr': 'french',
+//       'de': 'german',
+//       'ja': 'japanese',
+//       'ko': 'korean'
+//     };
+//     return languageMap[code] || 'english';
+//   };
+
+//   const storeSettings = apiData.store_data?.store_settings || {};
+//   const userDetails = apiData.user_details || {};
+//   const aiGenSettings = userDetails.ai_gen_settings || {};
+
+//   return {
+//     autoGenerate: storeSettings.alt_magic_auto_generate === "1",
+//     verbosity: aiGenSettings.alt_gen_type || "standard",
+//     language: mapLanguageCodeToName(storeSettings.alt_magic_language || userDetails.language || "en"),
+//     fieldMapping: {
+//       useForTitle: false,
+//       useForCaption: false,
+//       useForDescription: false,
+//     },
+//     textPrefix: storeSettings.alt_magic_prepend_string || "",
+//     textSuffix: storeSettings.alt_magic_append_string || "",
+//     seoIntegration: true,
+//     postContext: storeSettings.alt_magic_use_post_title === "1",
+//     updateStrategy: "empty_only",
+//     performanceLevel: "1",
+//   };
+// };

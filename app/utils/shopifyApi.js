@@ -285,6 +285,9 @@
 //     handleApiResponse,
 //     localStorage
 // };
+
+
+
 const API_BASE_URL = 'https://alt-magic-api-eabaa2c8506a.herokuapp.com';
 
 /**
@@ -302,9 +305,7 @@ export async function verifyApiKey(apiKey, storeUrl) {
 
         if (response.ok) {
             localStorage.saveCredentials(data.api_key, data.user_id);
-            if (data.user_details?.language) {
-                localStorage.saveLanguage(data.user_details.language);
-            }
+            // ❌ REMOVED: localStorage.saveLanguage(data.user_details.language);
             return {
                 success: true,
                 data,
@@ -340,9 +341,7 @@ export async function getUserDetails(storeUrl) {
             if (apiKey && data.user_id) {
                 localStorage.saveCredentials(apiKey, data.user_id);
             }
-            if (data.user_details?.language) {
-                localStorage.saveLanguage(data.user_details.language);
-            }
+            // ❌ REMOVED: localStorage.saveLanguage(data.user_details.language);
             return {
                 success: true,
                 verified: true,
@@ -366,8 +365,6 @@ export async function getUserDetails(storeUrl) {
         return { success: false, verified: false, error: 'Network error occurred', status: null };
     }
 }
-
-
 
 /**
  * Get current store URL from window location
@@ -477,17 +474,12 @@ export const localStorage = {
     },
     getApiKey: () => (typeof window !== 'undefined' ? window.localStorage.getItem('shopify_api_key') : null),
     getUserId: () => (typeof window !== 'undefined' ? window.localStorage.getItem('shopify_user_id') : null),
-    saveLanguage: (languageCode) => {
-        if (typeof window !== 'undefined') {
-            window.localStorage.setItem('shopify_user_language', languageCode);
-        }
-    },
-    getLanguage: () => (typeof window !== 'undefined' ? window.localStorage.getItem('shopify_user_language') : null),
+    // ❌ REMOVED: saveLanguage and getLanguage functions
     clearCredentials: () => {
         if (typeof window !== 'undefined') {
             window.localStorage.removeItem('shopify_api_key');
             window.localStorage.removeItem('shopify_user_id');
-            window.localStorage.removeItem('shopify_user_language');
+            // ❌ REMOVED: window.localStorage.removeItem('shopify_user_language');
         }
     }
 };
