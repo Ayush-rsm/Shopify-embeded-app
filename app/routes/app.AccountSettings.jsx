@@ -326,7 +326,6 @@
 //   );
 // }
 
-
 import { useState, useCallback, useEffect } from "react";
 import {
   Page,
@@ -342,6 +341,7 @@ import {
   Avatar,
   InlineStack,
   Box,
+  Link,  // Add this import
 } from "@shopify/polaris";
 import {
   completeVerificationFlow,
@@ -368,26 +368,27 @@ export default function AccountSettings() {
   const mapUserDetails = (apiResponse) => {
     const userDetailsData = apiResponse.userDetails || apiResponse.user_details;
     const apiKey = apiResponse.apiKey || apiResponse.api_key;
-    // Language mapping for better display
-  const getLanguageDisplay = (langCode) => {
-    const languageMap = {
-      'en': 'English',
-      'es': 'Spanish', 
-      'fr': 'French',
-      'de': 'German',
-      'it': 'Italian',
-      'pt': 'Portuguese',
-      'ja': 'Japanese',
-      'ko': 'Korean',
-      'zh': 'Chinese'
+
+    const getLanguageDisplay = (langCode) => {
+      const languageMap = {
+        'en': 'English',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'it': 'Italian',
+        'pt': 'Portuguese',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+        'zh': 'Chinese'
+      };
+      return languageMap[langCode] || langCode?.toUpperCase();
     };
-    return languageMap[langCode] || langCode?.toUpperCase();
-  };
+
     return {
       apiKey: apiKey || "****",
       username: userDetailsData?.user_name?.split(' ')[0]?.toLowerCase() ||
         userDetailsData?.username ||
-        userDetailsData?.email?.split('@') ||
+        userDetailsData?.email?.split('@')[0] ||
         "user",
       profile: {
         name: userDetailsData?.user_name || userDetailsData?.name || "User",
@@ -400,7 +401,7 @@ export default function AccountSettings() {
       creditsAvailable: userDetailsData?.credits_available ||
         userDetailsData?.credits || 0,
       usage: userDetailsData?.usage || null,
-      language: getLanguageDisplay(userDetailsData?.language), // Added language field
+      language: getLanguageDisplay(userDetailsData?.language),
     };
   };
 
@@ -503,40 +504,107 @@ export default function AccountSettings() {
     <Card>
       <Box padding="500">
         <BlockStack gap="500">
-          <Text variant="headingLg">API Key Verification</Text>
-          <Text variant="bodyMd" tone="subdued">
-            Enter your API key to access your account details and credits information.
-          </Text>
-          <InlineStack gap="300">
-            <div style={{ flexGrow: 1 }}>
-              <TextField
-
-                value={apiKey}
-                onChange={handleApiKeyChange}
-                placeholder="Enter your API key"
-                type="password"
-                error={error}
-                autoComplete="off"
-                disabled={isVerifying}
-              />
-            </div>
-            <Button
-              variant="primary"
-              onClick={handleVerification}
-              loading={isVerifying}
-              disabled={!apiKey.trim() || isVerifying}
-            >
-              {isVerifying ? "Verifying..." : "Verify"}
-            </Button>
+          <InlineStack gap="300" align="space-between">
+            <Text variant="headingMd" as="h3">API Key</Text>
+            <InlineStack gap="300">
+              <div style={{ flexGrow: 1, minWidth: '700px' }}>
+                <TextField
+                  value={apiKey}
+                  onChange={handleApiKeyChange}
+                  placeholder="••••••••••••••••••••"
+                  type="password"
+                  error={error}
+                  autoComplete="off"
+                  disabled={isVerifying}
+                />
+              </div>
+              <Button
+                variant="primary"
+                onClick={handleVerification}
+                loading={isVerifying}
+                disabled={!apiKey.trim() || isVerifying}
+              >
+                {isVerifying ? "Verifying..." : "Verify"}
+              </Button>
+            </InlineStack>
           </InlineStack>
+
+
+          <Text variant="bodyMd" tone="subdued">
+            Note: Please enter your API key to continue. You can generate your API key from your{' '}
+            <a
+              href="https://app.altmagic.pro"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--p-color-text-link)' }}
+            >
+              Alt Magic WordPress Page
+            </a>
+          </Text>
+
           {error && (
             <Banner tone="critical">
               <Text>{error}</Text>
             </Banner>
           )}
+
+          {/* Video Tutorial Section */}
+          <Box paddingBlockStart="400">
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h4">
+                How to get your API Key?
+              </Text>
+
+              <Text variant="bodyMd" tone="subdued">
+                Watch our video tutorial to learn how to get your API key.
+              </Text>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center', // Centers the video
+                width: '100%'
+              }}>
+                <div style={{
+                  padding: '12px',
+                  background: 'var(--p-color-bg-surface-secondary)',
+                  borderRadius: '8px',
+                  maxWidth: '700px'
+                }}>
+                  <div style={{
+                    position: 'relative',
+                    paddingBottom: '56.25%',
+                    height: 0,
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    width: '600px'
+                  }}>
+                    <iframe
+                      src="https://www.youtube.com/embed/lHqcZ2Egz4Y"
+                      title="Boost Image SEO Instantly! 🔥 WordPress Alt Text Automation with Alt Magic (Full Walkthrough)"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: 0,
+                        borderRadius: '8px'
+                      }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+              </div>
+
+
+
+            </BlockStack>
+          </Box>
         </BlockStack>
       </Box>
     </Card>
+
+
   );
 
   const renderUserDetails = () => {
@@ -545,24 +613,52 @@ export default function AccountSettings() {
       <Card>
         <Box padding="500">
           <BlockStack gap="500">
-            <InlineStack align="space-between">
-              <Text variant="headingLg">Account Information</Text>
-              <Button variant="secondary" onClick={handleDisconnect}>
-                Disconnect
-              </Button>
-            </InlineStack>
+            {/* API Key Section */}
+            <BlockStack gap="300">
+              <InlineStack gap="300" align="center">
+                <Text variant="headingMd" as="h3">API Key</Text>
+                <div style={{ flexGrow: 1 }}>
+                  <TextField
+                    value="••••••••••••••••••••"
+                    readOnly
+                    type="password"
+                  />
+                </div>
+                <Button
+                  variant="primary"
+                  onClick={handleVerification}
+                >
+                  Verify
+                </Button>
+              </InlineStack>
+              <Text variant="bodyMd" tone="info">
+                Note: Please enter your API key to continue. You can generate your API key from your Alt Magic Page
+              </Text>
+              {/* Success Message */}
+              <div>
+                <InlineStack gap="200" align="start">
+                  <div>✓</div>
+                  <Text tone="success">API key is verified.</Text>
+                </InlineStack>
+              </div>
 
-            <InlineStack gap="400" align="center">
+            </BlockStack>
+
+
+            <Divider />
+
+            {/* Account Section */}
+            <InlineStack gap="300" align="start">
+              <Text variant="headingMd" as="h3">Account</Text>
+
               <div style={{
-                width: '120px',
-                height: '120px',
-                borderRadius: '12px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
                 overflow: 'hidden',
-                border: '2px solid var(--p-color-border)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'var(--p-color-bg-surface-secondary)'
+                justifyContent: 'center'
               }}>
                 {userDetails.profile.avatar ? (
                   <img
@@ -577,93 +673,49 @@ export default function AccountSettings() {
                 ) : (
                   <Avatar
                     customer
-                    size="extraLarge"
+                    size="medium"
                     name={userDetails.profile.name}
                   />
                 )}
               </div>
-              <BlockStack gap="200">
-                <Text variant="headingMd">{userDetails.profile.name}</Text>
-                <Text variant="bodyLg" tone="subdued">
-                  @{userDetails.username}
-                </Text>
+
+              <BlockStack gap="100">
+                <Text variant="bodyMd" as="p">{userDetails.profile.name}</Text>
                 <Text variant="bodyMd" tone="subdued">
                   {userDetails.profile.email}
                 </Text>
               </BlockStack>
             </InlineStack>
 
-            <Divider />
-
-            <BlockStack gap="300">
-              <Text variant="headingSm">API Key</Text>
-              <TextField
-                value={userDetails.apiKey}
-                readOnly
-                type="password"
-                connectedRight={
-                  <Button
-                    onClick={() => {
-                      navigator.clipboard.writeText(userDetails.apiKey);
-                      console.log('📋 API key copied to clipboard');
-                    }}
-                  >
-                    Copy
-                  </Button>
-                }
-              />
-            </BlockStack>
-
-
-         
-
-
 
             <Divider />
 
-            <InlineStack gap="500">
-              <div style={{ flex: 1 }}>
-                <BlockStack gap="100">
-                <Card background="bg-surface-secondary">
-                  <Box >
-                  <BlockStack gap="200" align="center">
-              <Text variant="headingSm">Language</Text>
-              <Badge tone="info">
-                {userDetails.language}
+            {/* Credits Available Section */}
+            <InlineStack gap="300" align="start">
+              <Text variant="headingMd" as="h3">Credits Available</Text>
+              <Badge tone="success" size="large">
+                {userDetails.creditsAvailable.toLocaleString()}
               </Badge>
-            </BlockStack>
-             </Box>
-                </Card>
-              
-                <Card  background="bg-surface-secondary">
-                  <Box >
-                    <BlockStack gap="300" align="center">
-                      <Text variant="headingSm">Current Plan</Text>
-                      <Badge tone={userDetails.planName.includes('Pro') ? "success" : "info"}>
-                        {userDetails.planName}
-                      </Badge>
-                    </BlockStack>
-                  </Box>
-                </Card>
-                 </BlockStack>
-                 
-              </div>
-              <div style={{ flex: 1 }}>
-                <Card background="bg-surface-secondary">
-                  <Box padding="400">
-                    <BlockStack gap="300" align="center">
-                      <Text variant="headingSm">Credits Available</Text>
-                      <Text variant="heading2xl" as="p" alignment="center">
-                        {userDetails.creditsAvailable.toLocaleString()}
-                      </Text>
-                      <Text variant="bodyMd" tone="subdued" alignment="center">
-                        API calls remaining
-                      </Text>
-                    </BlockStack>
-                  </Box>
-                </Card>
-              </div>
             </InlineStack>
+
+
+
+
+            {/* Remove API Key Section */}
+            <InlineStack gap="300" align="start">
+              <Button
+                variant="plain"
+                tone="critical"
+                onClick={handleDisconnect}
+                textAlign="left"
+              >
+                Remove API Key
+              </Button>
+              <Text variant="bodyMd" tone="subdued">
+                (Removing your API key will disable all Alt Magic features in your site.)
+              </Text>
+            </InlineStack>
+
           </BlockStack>
         </Box>
       </Card>
@@ -696,8 +748,7 @@ export default function AccountSettings() {
 
   return (
     <Page
-      title="Account Settings"
-      subtitle="Manage your API key and view account details"
+      title="Alt Magic Settings"
       backAction={{ content: "Dashboard", url: "/app" }}
     >
       <Layout>
@@ -708,4 +759,3 @@ export default function AccountSettings() {
     </Page>
   );
 }
-
