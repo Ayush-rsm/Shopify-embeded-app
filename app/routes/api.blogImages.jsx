@@ -24,6 +24,7 @@ export const loader = async ({ request }) => {
                   title
                   image { altText url }
                   body
+                  publishedAt    # Added for visibility
                 }
               }
             }
@@ -48,12 +49,18 @@ export const loader = async ({ request }) => {
       // Extract numeric IDs for REST API compatibility
       const blogId = blog.node.id.split('/').pop();
       const articleId = article.id.split('/').pop();
+      
+      // Determine visibility from publishedAt
+      const isVisible = article.publishedAt ? true : false;
+      const visibility = isVisible ? "visible" : "hidden";
 
       console.log('Processing article:', {
         blogId,
         articleId,
         blogTitle: blog.node.title,
         articleTitle: article.title,
+        publishedAt: article.publishedAt,
+        visibility: visibility,
         hasFeaturedImage: !!article.image?.url
       });
 
@@ -65,6 +72,9 @@ export const loader = async ({ request }) => {
           altText: article.image.altText || "",
           type: "blog",
           processedOn: "",
+          // ✅ Visibility fields
+          publishedAt: article.publishedAt,
+          visibility: visibility,
           // ✅ Critical fields for proper detection
           blogId: blogId,
           articleId: articleId,
@@ -84,6 +94,7 @@ export const loader = async ({ request }) => {
         console.log('✅ Added featured image:', {
           id: `${article.id}_featured`,
           url: article.image.url,
+          visibility: visibility,
           currentAlt: article.image.altText || ""
         });
       }
@@ -102,6 +113,9 @@ export const loader = async ({ request }) => {
               altText: alt,
               type: "blog",
               processedOn: "",
+              // ✅ Visibility fields (inherited from article)
+              publishedAt: article.publishedAt,
+              visibility: visibility,
               // ✅ Critical fields for proper detection
               blogId: blogId,
               articleId: articleId,
@@ -123,7 +137,7 @@ export const loader = async ({ request }) => {
           }
         });
         
-        console.log('✅ Added inline images:', $("img").length);
+        console.log('✅ Added inline images:', $("img").length, 'with visibility:', visibility);
       }
 
       return images;
@@ -134,6 +148,8 @@ export const loader = async ({ request }) => {
     totalImages: blogImages.length,
     featuredImages: blogImages.filter(img => img.imageType === "featured").length,
     inlineImages: blogImages.filter(img => img.imageType === "inline").length,
+    visibleImages: blogImages.filter(img => img.visibility === "visible").length,
+    hiddenImages: blogImages.filter(img => img.visibility === "hidden").length,
     totalBlogs: blogs.length
   });
 
@@ -150,10 +166,13 @@ export const loader = async ({ request }) => {
       totalBlogs: blogs.length,
       featuredImages: blogImages.filter(img => img.imageType === "featured").length,
       inlineImages: blogImages.filter(img => img.imageType === "inline").length,
+      visibleImages: blogImages.filter(img => img.visibility === "visible").length,
+      hiddenImages: blogImages.filter(img => img.visibility === "hidden").length,
       imageBreakdown: blogImages.map(img => ({
         id: img.id,
         type: img.imageType,
         isFeatured: img.isFeaturedImage,
+        visibility: img.visibility,
         url: img.image.substring(0, 50) + '...'
       }))
     }

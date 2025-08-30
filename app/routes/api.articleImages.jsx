@@ -11,9 +11,17 @@ export const loader = async ({ request }) => {
   const pageQuery = `
     query GetPages($first: Int!, $after: String) {
       pages(first: $first, after: $after) {
-        pageInfo { hasNextPage endCursor }
+        pageInfo { 
+          hasNextPage 
+          endCursor 
+        }
         edges {
-          node { id title body }
+          node { 
+            id
+            title
+            body
+            publishedAt    # Added for visibility
+          }
         }
       }
     }
@@ -28,9 +36,14 @@ export const loader = async ({ request }) => {
 
   const pageImages = pages.flatMap((page) => {
     if (!page.node.body) return [];
-    const matches = [...page.node.body.matchAll(/<img[^>]*src=\"([^\"]+)\"[^>]*>/g)];
+    
+    // Determine visibility from publishedAt
+    const isVisible = page.node.publishedAt ? true : false;
+    const visibility = isVisible ? "visible" : "hidden";
+    
+    const matches = [...page.node.body.matchAll(/<img[^>]*src="([^"]+)"[^>]*>/g)];
     return matches.map((match, index) => {
-      const altMatch = match[0].match(/alt=\"([^\"]*)\"/);
+      const altMatch = match[0].match(/alt="([^"]*)"/);
       const altText = altMatch ? altMatch[1] : "";
       return {
         id: `${page.node.id}_img_${index}`,
@@ -38,6 +51,14 @@ export const loader = async ({ request }) => {
         altText,
         type: "page",
         processedOn: "",
+        
+        // ✅ ADD: Visibility fields
+        publishedAt: page.node.publishedAt,
+        visibility: visibility,
+        
+        // Additional page metadata
+        pageTitle: page.node.title,
+        pageId: page.node.id.split('/').pop(),
       };
     });
   });
@@ -50,5 +71,11 @@ export const loader = async ({ request }) => {
   return json({
     images: pageImages,
     pageInfo,
+    summary: {
+      totalImages: pageImages.length,
+      visibleImages: pageImages.filter(img => img.visibility === "visible").length,
+      hiddenImages: pageImages.filter(img => img.visibility === "hidden").length,
+      totalPages: pages.length,
+    }
   });
 };
